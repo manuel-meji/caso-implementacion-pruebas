@@ -17,6 +17,19 @@ class Curso extends Model
 
     public function grupos()
     {
-        return $this->hasMany(Grupo::class, 'curso_id');
+        return $this->hasMany(Grupo::class);
     }
+
+    public function listarGruposAbiertos(): array
+    {
+        $gruposAbiertos = [];
+        foreach ($this->grupos as $grupo) {
+            if ($grupo->abierto == true) {
+            $gruposAbiertos[] = $grupo;
+            }
+        }
+       
+        return $gruposAbiertos;
+    }
+
 }

@@ -18,7 +18,7 @@ return new class extends Migration
             $table->integer('numeroGrupo');
             $table->boolean('abierto')->default(true);
             $table->foreignId('curso_id')->constrained('cursos')->cascadeOnDelete();
-            $table->foreignId('docente1_id')->constrained('docentes')->cascadeOnDelete();
+            $table->foreignId('docente1_id')->nullable()->constrained('docentes')->cascadeOnDelete();
             $table->foreignId('docente2_id')->nullable()->constrained('docentes')->nullOnDelete();
             $table->timestamps();
         });

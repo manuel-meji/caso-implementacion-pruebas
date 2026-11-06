@@ -6,9 +6,7 @@ use App\Models\Estudiante;
 use App\Models\EstudianteMatriculado;
 use App\Models\Grupo;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Tests\TestCase;
 
-uses(TestCase::class, RefreshDatabase::class);
 
 test('la instancia de grupo contiene toda la informacion real asociada', function () {
     // 1. Docentes: titular, secundario y consejero
