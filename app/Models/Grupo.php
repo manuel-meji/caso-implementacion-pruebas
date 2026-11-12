@@ -2,86 +2,73 @@
 
 namespace App\Models;
 
-use Database\Factories\GrupoFactory;
+use DomainException;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\DB;
-use App\Models\Curso;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use InvalidArgumentException;
 
 class Grupo extends Model
 {
-    /** @use HasFactory<GrupoFactory> */
     use HasFactory;
 
-    protected $fillable = [
-        'numeroCiclo',
-        'ano',
-        'numeroGrupo',
-        'abierto',
-        'curso_id',
-        'docente1_id',
-        'docente2_id',
-    ];
+    protected $guarded = [];
 
-    public function curso()
+    protected function casts(): array
+    {
+        return [
+            'abierto' => 'boolean',
+        ];
+    }
+
+    public function curso(): BelongsTo
     {
         return $this->belongsTo(Curso::class, 'curso_id');
     }
 
-    public function docente1()
+    public function docentes(): BelongsToMany
     {
-        return $this->belongsTo(Docente::class, 'docente1_id');
+        return $this->belongsToMany(Docente::class, 'grupo_docente', 'grupo_id', 'docente_id');
     }
 
-    public function docente2()
+    public function estudiantes(): BelongsToMany
     {
-        return $this->belongsTo(Docente::class, 'docente2_id');
+        return $this->belongsToMany(Estudiante::class, 'estudiantes_matriculados', 'grupo_id', 'estudiante_id')
+            ->using(EstudianteMatriculado::class)
+            ->withPivot('nota');
     }
 
-    public function estudianteMatriculados()
+    public function asignarDocente(Docente $d): void
     {
-        return $this->hasMany(EstudianteMatriculado::class, 'grupo_id');
-    }
-
-    public function estudiantes()
-    {
-        return $this->belongsToMany(Estudiante::class, 'estudiante_matriculados', 'grupo_id', 'estudiante_id');
-    }
-
-    public function asignarCurso(Curso $cursoAsignado) {
-        $this->curso()->associate($cursoAsignado);
-    }
-
-    //No hay una tabla grupo_docente, pero si se guardan los docentes en la tabla grupos.
-    public function asignarDocente(Docente $docenteAsignado) {
-        if ($this->docente1 == null) {
-            $this->docente1()->associate($docenteAsignado);
-        } else if ($this->docente2 == null) {
-            $this->docente2()->associate($docenteAsignado);
+        if ($this->docentes()->count() >= 2) {
+            throw new DomainException('Un grupo no puede tener más de 2 docentes.');
         }
+
+        $this->docentes()->attach($d->id);
     }
 
-    public function puedeAbrirse(): bool{
-        $cantidadEstudiantes = DB::table('estudiante_matriculados')
-            ->where('grupo_id', $this->id)
-            ->count();
-        if ($cantidadEstudiantes >= 15 and $this->docente1 != null) {
-            return true;
+    public function puedeAbrirse(): bool
+    {
+        return $this->docentes()->count() >= 1 && $this->estudiantes()->count() >= 15;
+    }
+
+    public function abrir(): void
+    {
+        if (! $this->puedeAbrirse()) {
+            throw new DomainException('El grupo no cumple los requisitos para abrirse.');
         }
-        return false;
+
+        $this->abierto = true;
+        $this->save();
     }
 
-    public function abrirGrupo(): bool{ {
-        if ($this->puedeAbrirse()) {
-            $this->abierto = true;
-            $this->save();
-            return true;
+    public function registrarNota(Estudiante $e, float $nota): void
+    {
+        if ($nota < 0 || $nota > 10) {
+            throw new InvalidArgumentException('La nota debe estar entre 0 y 10.');
         }
-        return false;
-    }
-    }
 
-    
-    
-
+        $this->estudiantes()->updateExistingPivot($e->id, ['nota' => $nota]);
+    }
 }

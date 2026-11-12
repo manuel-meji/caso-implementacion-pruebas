@@ -16,10 +16,15 @@ return new class extends Migration
             $table->integer('numeroCiclo');
             $table->integer('ano');
             $table->integer('numeroGrupo');
-            $table->boolean('abierto')->default(true);
-            $table->foreignId('curso_id')->constrained('cursos')->cascadeOnDelete();
-            $table->foreignId('docente1_id')->nullable()->constrained('docentes')->cascadeOnDelete();
-            $table->foreignId('docente2_id')->nullable()->constrained('docentes')->nullOnDelete();
+            $table->boolean('abierto')->default(false);
+            $table->foreignId('curso_id')->nullable()->constrained('cursos')->cascadeOnDelete();
+            $table->timestamps();
+        });
+
+        Schema::create('grupo_docente', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('grupo_id')->constrained('grupos')->cascadeOnDelete();
+            $table->foreignId('docente_id')->constrained('docentes')->cascadeOnDelete();
             $table->timestamps();
         });
     }
@@ -29,6 +34,7 @@ return new class extends Migration
      */
     public function down(): void
     {
+        Schema::dropIfExists('grupo_docente');
         Schema::dropIfExists('grupos');
     }
 };

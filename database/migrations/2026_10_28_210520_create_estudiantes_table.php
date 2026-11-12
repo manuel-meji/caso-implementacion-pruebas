@@ -16,7 +16,7 @@ return new class extends Migration
             $table->string('carne')->unique();
             $table->string('nombre');
             $table->string('apellidos');
-            $table->foreignId('docente_id')->constrained('docentes')->cascadeOnDelete();
+            $table->foreignId('consejero_id')->nullable()->constrained('docentes')->cascadeOnDelete();
             $table->timestamps();
         });
     }

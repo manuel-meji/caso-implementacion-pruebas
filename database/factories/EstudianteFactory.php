@@ -22,7 +22,7 @@ class EstudianteFactory extends Factory
             'carne' => fake()->unique()->bothify('?#?###'),
             'nombre' => fake()->firstName(),
             'apellidos' => fake()->lastName(),
-            'docente_id' => Docente::factory(),
+            'consejero_id' => Docente::factory(),
         ];
     }
 }

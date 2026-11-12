@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Curso extends Model
 {
@@ -15,21 +16,8 @@ class Curso extends Model
         'creditos',
     ];
 
-    public function grupos()
+    public function grupos(): HasMany
     {
-        return $this->hasMany(Grupo::class);
+        return $this->hasMany(Grupo::class, 'curso_id');
     }
-
-    public function listarGruposAbiertos(): array
-    {
-        $gruposAbiertos = [];
-        foreach ($this->grupos as $grupo) {
-            if ($grupo->abierto == true) {
-            $gruposAbiertos[] = $grupo;
-            }
-        }
-       
-        return $gruposAbiertos;
-    }
-
 }

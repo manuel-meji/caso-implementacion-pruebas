@@ -1,227 +1,134 @@
 <?php
 
-use App\Models\Curso;
-use App\Models\Docente;
 use App\Models\Estudiante;
-use App\Models\EstudianteMatriculado;
 use App\Models\Grupo;
 
-test('Registrar un grupo con toda su información y su curso', function () {
+mutates(Grupo::class);
 
-    $curso = new Curso()::factory()->create([
-        'sigla' => 'IF6100',
-        'nombreCurso' => 'Análisis y Diseño de Sistemas',
-        'creditos' => 4,
-    ]);
+test('CP-01 Registrar un grupo con toda su información y su curso', function () {
+    $curso = crearCursoIF6100();
 
-    $grupo = new Grupo()::factory()->create([
-        'numeroGrupo' => '1',
-        'ano' => 2026,
+    $grupo = new Grupo([
         'numeroCiclo' => 2,
-        'abierto' => true
+        'ano' => 2026,
+        'numeroGrupo' => 1,
+        'abierto' => true,
     ]);
+    $grupo->curso()->associate($curso);
+    $grupo->save();
 
-    $grupo->asignarCurso($curso);
-    
-    expect($grupo->curso->sigla)->toEqual('IF6100');
-    expect($grupo->numeroCiclo)->toEqual(2);
-    expect($grupo->ano)->toEqual(2026);
-    expect($grupo->abierto)->toEqual(true);
+    $grupoRecuperado = Grupo::find($grupo->id);
 
+    expect($grupoRecuperado->numeroCiclo)->toBe(2);
+    expect($grupoRecuperado->ano)->toBe(2026);
+    expect($grupoRecuperado->numeroGrupo)->toBe(1);
+    expect($grupoRecuperado->abierto)->toBeBool();
+    expect($grupoRecuperado->abierto)->toBeTrue();
+    expect($grupoRecuperado->curso->sigla)->toBe('IF6100');
+    expect($grupoRecuperado->curso->creditos)->toBe(4);
+    expect(Grupo::count())->toBe(1);
 });
 
+test('CP-02 Un curso tiene varios grupos y se distinguen los abiertos', function () {
+    $curso = crearCursoIF6100();
 
-
-test('Un curso tiene varios grupos y se distinguen los abiertos', function () {
-    $curso = new Curso()::factory()->create([
-        'sigla' => 'IF6100',
-        'nombreCurso' => 'Análisis y Diseño de Sistemas',
-        'creditos' => 4,
-    ]);
-
-    $grupo1 = new Grupo()::factory()->create([
-        'numeroGrupo' => '1',
-        'ano' => 2026,
+    $grupo1 = Grupo::factory()->create([
+        'curso_id' => $curso->id,
         'numeroCiclo' => 2,
+        'ano' => 2026,
+        'numeroGrupo' => 1,
         'abierto' => true,
-        'curso_id'=> $curso->id
     ]);
 
-    $grupo2 = new Grupo()::factory()->create([
-        'numeroGrupo' => '2',
-        'ano' => 2026,
+    $grupo2 = Grupo::factory()->create([
+        'curso_id' => $curso->id,
         'numeroCiclo' => 2,
+        'ano' => 2026,
+        'numeroGrupo' => 2,
         'abierto' => true,
-        'curso_id'=> $curso->id
     ]);
 
-    $grupo3 = new Grupo()::factory()->create([
-        'numeroGrupo' => '3',
-        'ano' => 2026,
+    $grupo3 = Grupo::factory()->create([
+        'curso_id' => $curso->id,
         'numeroCiclo' => 2,
+        'ano' => 2026,
+        'numeroGrupo' => 3,
         'abierto' => false,
-        'curso_id'=> $curso->id
     ]);
 
-    $gruposAbiertos = $curso->listarGruposAbiertos();
+    $grupos = $curso->grupos;
+    $abiertos = $grupos->where('abierto', true);
 
-    expect($gruposAbiertos)->toHaveCount(2);
+    expect($grupos)->toHaveCount(3);
+    expect($abiertos)->toHaveCount(2);
+    expect($abiertos->pluck('numeroGrupo')->all())->toBe([1, 2]);
+    expect($grupo1->curso_id)->toBe($curso->id);
+    expect($grupo2->curso_id)->toBe($curso->id);
+    expect($grupo3->curso_id)->toBe($curso->id);
 });
 
-test('Un grupo acepta dos docentes', function () {
-
-    $curso = new Curso()::factory()->create([
-        'sigla' => 'IF6100',
-        'nombreCurso' => 'Análisis y Diseño de Sistemas',
-        'creditos' => 4,
-    ]);
-
-    $grupo = new Grupo()::factory()->create([
-        'numeroGrupo' => '01',
-        'ano' => 2026,
-        'numeroCiclo' => 2,
-        'abierto' => true,
-        'curso_id'=> $curso->id,
-        'docente1_id'=>null,
-        'docente2_id'=>null
-    ]);
-
-    $docente1 = new Docente()::factory()->create([
-        'codEmpleado' => '1001',
-        'nombreEmpleado' => 'Ana',
-        'apellidosEmpleado' => 'Mora Vargas',
-    ]);
-
-    $docente2 = new Docente()::factory()->create([
-        'codEmpleado' => '1002',
-        'nombreEmpleado' => 'Luis',
-        'apellidosEmpleado' => 'Rojas Solano', 
-    ]);
-
+test('CP-03 Un grupo acepta dos docentes', function () {
+    $curso = crearCursoIF6100();
+    $grupo = crearGrupo01($curso);
+    $docente1 = crearDocente1001();
+    $docente2 = crearDocente1002();
 
     $grupo->asignarDocente($docente1);
     $grupo->asignarDocente($docente2);
 
-    expect($grupo->docente1->codEmpleado)->toEqual($docente1->codEmpleado);
-    expect($grupo->docente2->codEmpleado)->toEqual($docente2->codEmpleado);
-
+    expect($grupo->docentes)->toHaveCount(2);
+    expect($grupo->docentes->pluck('codEmpleado')->all())->toBe([1001, 1002]);
+    expect($docente1->grupos()->first()->id)->toBe($grupo->id);
+    $this->assertDatabaseCount('grupo_docente', 2);
 });
 
-
-test('Un grupo rechaza un tercer docente', function (){
-    $curso = new Curso()::factory()->create([
-        'sigla' => 'IF6100',
-        'nombreCurso' => 'Análisis y Diseño de Sistemas',
-        'creditos' => 4,
-    ]);
-
-    $grupo = new Grupo()::factory()->create([
-        'numeroGrupo' => '01',
-        'ano' => 2026,
-        'numeroCiclo' => 2,
-        'abierto' => true,
-        'curso_id'=> $curso->id,
-        'docente1_id'=>null,
-        'docente2_id'=>null
-    ]);
-
-    $docente1 = new Docente()::factory()->create([
-        'codEmpleado' => '1001',
-        'nombreEmpleado' => 'Ana',
-        'apellidosEmpleado' => 'Mora Vargas',
-    ]);
-
-    $docente2 = new Docente()::factory()->create([
-        'codEmpleado' => '1002',
-        'nombreEmpleado' => 'Luis',
-        'apellidosEmpleado' => 'Rojas Solano', 
-    ]);
-
-    $docente3 = new Docente()::factory()->create([
-        'codEmpleado' => '1003',
-        'nombreEmpleado' => 'Carla',
-        'apellidosEmpleado' => 'Jiménez Araya', 
-    ]);
+test('CP-04 Un grupo rechaza un tercer docente', function () {
+    $curso = crearCursoIF6100();
+    $grupo = crearGrupo01($curso);
+    $docente1 = crearDocente1001();
+    $docente2 = crearDocente1002();
+    $docente3 = crearDocente1003();
 
     $grupo->asignarDocente($docente1);
     $grupo->asignarDocente($docente2);
-    $grupo->asignarDocente($docente3); 
 
-    expect($grupo->docente1->codEmpleado)->toEqual($docente1->codEmpleado);
-    expect($grupo->docente2->codEmpleado)->toEqual($docente2->codEmpleado);
-    expect($grupo->docente3)->toBeNull();
-    
+    expect(fn () => $grupo->asignarDocente($docente3))->toThrow(DomainException::class);
+
+    expect($grupo->docentes()->count())->toBe(2);
+    $this->assertDatabaseMissing('grupo_docente', [
+        'grupo_id' => $grupo->id,
+        'docente_id' => $docente3->id,
+    ]);
 });
 
-test('Un grupo con 14 estudiantes no puede abrirse', function () {
-    $curso = new Curso()::factory()->create([
-        'sigla' => 'IF6100',
-        'nombreCurso' => 'Análisis y Diseño de Sistemas',
-        'creditos' => 4,
-    ]);
-
-    $grupo = new Grupo()::factory()->create([
-        'numeroGrupo' => '01',
-        'ano' => 2026,
-        'numeroCiclo' => 2,
-        'abierto' => false,
-        'curso_id'=> $curso->id,
-    ]);
+test('CP-05 Un grupo con 14 estudiantes no puede abrirse', function () {
+    $curso = crearCursoIF6100();
+    $grupo = crearGrupo01($curso);
+    $docente1 = crearDocente1001();
+    $grupo->asignarDocente($docente1);
 
     $estudiantes = Estudiante::factory()->count(14)->create();
-
     foreach ($estudiantes as $estudiante) {
-        EstudianteMatriculado::factory()->create([
-            'estudiante_id' => $estudiante->id,
-            'grupo_id' => $grupo->id,
-        ]);
+        $grupo->estudiantes()->attach($estudiante->id);
     }
 
-    $docente1 = new Docente()::factory()->create([
-        'codEmpleado' => '1001',
-        'nombreEmpleado' => 'Ana',
-        'apellidosEmpleado' => 'Mora Vargas',
-    ]);
-
-    $grupo->asignarDocente($docente1);
-
-    expect($grupo->abrirGrupo())->toBeFalse();
+    expect($grupo->puedeAbrirse())->toBeFalse();
+    expect(fn () => $grupo->abrir())->toThrow(DomainException::class);
+    expect($grupo->fresh()->abierto)->toBeFalse();
 });
 
+test('CP-06 Un grupo con 15 estudiantes y un docente se abre', function () {
+    $curso = crearCursoIF6100();
+    $grupo = crearGrupo01($curso);
+    $docente1 = crearDocente1001();
+    $grupo->asignarDocente($docente1);
 
-test('Un grupo con 15 estudiantes y un docente se abre', function () {
-    $curso = new Curso()::factory()->create([
-        'sigla' => 'IF6100',
-        'nombreCurso' => 'Análisis y Diseño de Sistemas',
-        'creditos' => 4,
-    ]);
-
-    $grupo = new Grupo()::factory()->create([
-        'numeroGrupo' => '01',
-        'ano' => 2026,
-        'numeroCiclo' => 2,
-        'abierto' => false,
-        'curso_id'=> $curso->id,
-    ]);
-
-    $docente1 = new Docente()::factory()->create([
-        'codEmpleado' => '1001',
-        'nombreEmpleado' => 'Ana',
-        'apellidosEmpleado' => 'Mora Vargas',
-    ]);
-
-     $estudiantes = Estudiante::factory()->count(15)->create();
-
+    $estudiantes = Estudiante::factory()->count(15)->create();
     foreach ($estudiantes as $estudiante) {
-        EstudianteMatriculado::factory()->create([
-            'estudiante_id' => $estudiante->id,
-            'grupo_id' => $grupo->id,
-        ]);
+        $grupo->estudiantes()->attach($estudiante->id);
     }
 
-    $grupo->asignarDocente($docente1);
-    expect($grupo->abrirGrupo())->toBeTrue();
+    expect($grupo->puedeAbrirse())->toBeTrue();
+    $grupo->abrir();
+    expect($grupo->fresh()->abierto)->toBeTrue();
 });
-
-
-
